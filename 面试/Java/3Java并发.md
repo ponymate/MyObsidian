@@ -17,28 +17,6 @@
 
 线程是进程划分成的更小的运行单位。线程和进程最大的不同在于基本上各进程是独立的，而各线程则不一定，因为同一进程中的线程极有可能会相互影响。线程执行开销小，但不利于资源的管理和保护；而进程正相反。
 
-## 并发编程三个重要特性
-
-原子性
-
-一次操作或者多次操作，要么所有的操作全部都得到执行并且不会受到任何因素的干扰而中断，要么都不执行。
-
-可见性
-
-当一个线程对共享变量进行了修改，那么另外的线程都是立即可以看到修改后的最新值。
-
-在 Java 中，可以借助`synchronized` 、`volatile` 以及各种 `Lock` 实现可见性。
-
-如果我们将变量声明为 `volatile` ，这就指示 JVM，这个变量是共享且不稳定的，每次使用它都到主存中进行读取。
-
-有序性
-
-由于指令重排序问题，代码的执行顺序未必就是编写代码时候的顺序。
-
-指令重排序可以保证串行语义一致，但是没有义务保证多线程间的语义也一致 ，所以在多线程下，指令重排序可能会导致一些问题。
-
-在 Java 中，`volatile` 关键字可以禁止指令进行重排序优化。
-
 ## sleep() vs wait()
 
 **共同点** ：两者都可以暂停线程的执行。
@@ -57,65 +35,139 @@
 
 ## JMM
 
-JMM是Java内存模型（Java Memory Model）的缩写。
+Java内存模型（Java Memory Model，JMM），是一种抽象的模型，被定义出来屏蔽各种硬件和操作系统的内存访问差异。
 
 ![[Pasted image 20230715150149.png]]
 
 Java虚拟机中的所有线程共享主存储器，每个线程有自己的本地内存。当线程访问变量时，它们首先将变量从主存储器复制到本地内存中，对该变量的所有操作都在本地内存中进行，最后将变量的最新值写回主存储器。
 
-"Happens-before" 原则是Java内存模型中定义的一组规则，定义操作之间的先后顺序，描述两个操作之间的内存可见性。
+本地内存是JMM的 一个抽象概念，并不真实存在。它其实涵盖了缓存、写缓冲区、寄存器以及其他的硬件和编译器优化。
+
+![实际线程工作模型](https://cdn.tobebetterjavaer.com/tobebetterjavaer/images/sidebar/sanfene/javathread-20.png)
+
+### 并发编程三个重要特性
+
+1. 原子性
+	一次操作或者多次操作，要么所有的操作全部都得到执行并且不会受到任何因素的干扰而中断，要么都不执行。
+	
+1. 可见性
+	当一个线程对共享变量进行了修改，其它线程能够立即知道这个修改。
+	
+	在 Java 中，可以借助`synchronized` 、`volatile` 以及各种 `Lock` 实现可见性。
+	
+	如果我们将变量声明为 `volatile` ，这就指示 JVM，这个变量是共享且不稳定的，每次使用它都到主存中进行读取。
+	
+1. 有序性
+	由于指令重排序问题，代码的执行顺序未必就是编写代码时候的顺序。
+	
+	指令重排序可以保证串行语义一致，但是没有义务保证多线程间的语义也一致 ，所以在多线程下，指令重排序可能会导致一些问题。
+	
+	在 Java 中，`volatile` 关键字可以禁止指令进行重排序优化。
+
+### 指令重排
+
+在执行程序时，为了提高性能，编译器和处理器常常会对指令做重排序。重排序分3种类型。
+
+1. 编译器优化的重排序。编译器在不改变单线程程序语义的前提下，可以重新安排语句的执行顺序。
+2. 指令级并行的重排序。现代处理器采用了指令级并行技术（Instruction-Level Parallelism，ILP）来将多条指令重叠执行。如果不存在数据依赖性，处理器可以改变语句对应机器指令的执行顺序。
+3. 内存系统的重排序。由于处理器使用缓存和读/写缓冲区，这使得加载和存储操作看上去可能是在乱序执行。
+
+从Java源代码到最终实际执行的指令序列，会分别经历下面3种重排序，如图：
+
+![多级指令重排](https://cdn.tobebetterjavaer.com/tobebetterjavaer/images/sidebar/sanfene/javathread-21.png)
+
+我们比较熟悉的双重校验单例模式就是一个经典的指令重排的例子，`Singleton instance=new Singleton()；`对应的JVM指令分为三步：分配内存空间-->初始化对象--->对象指向分配的内存空间，但是经过了编译器的指令重排序，第二步和第三步就可能会重排序。
+
+JMM属于语言级的内存模型，它确保在不同的编译器和不同的处理器平台之上，通过禁止特定类型的编译器重排序和处理器重排序，为程序员提供一致的内存可见性保证。
+
+### happens-before
+
+指令重排也是有一些限制的，有两个规则`happens-before`和`as-if-serial`来约束。
+
+"happens-before" 原则是Java内存模型中定义的一组规则，定义操作之间的先后顺序，描述两个操作之间的内存可见性。
 
 happens-before 原则的定义：
 
 -   如果一个操作 happens-before 另一个操作，那么第一个操作的执行结果将对第二个操作可见，并且第一个操作的执行顺序排在第二个操作之前。
--   两个操作之间存在 happens-before 关系，并不意味着 Java 平台的具体实现必须要按照 happens-before 关系指定的顺序来执行。如果重排序之后的执行结果，与按 happens-before 关系来执行的结果一致，那么 JMM 也允许这样的重排序。
+-   两个操作之间存在 happens-before 关系，并不意味着 Java 平台的具体实现必须要按照 happens-before 关系指定的顺序来执行。如果重排序之后的执行结果，与按 happens-before 关系来执行的结果一致，那么这种重排序并不非法。
 
 happens-before 原则的设计思想其实非常简单：
 
 -   为了对编译器和处理器的约束尽可能少，只要不改变程序的执行结果，编译器和处理器怎么进行重排序优化都行。
 -   对于会改变程序执行结果的重排序，JMM 要求编译器和处理器必须禁止这种重排序。
 
-## 乐观锁
+### as-if-serial
 
-悲观锁每次在获取资源操作的时候都会上锁，**共享资源每次只给一个线程使用，其它线程阻塞，用完后再把资源转让给其它线程**。
+as-if-serial语义的意思是：不管怎么重排序，**单线程程序的执行结果不能被改变**。编译器、runtime和处理器都必须遵守as-if-serial语义。
 
-乐观锁只是在提交修改的时候去验证对应的资源是否被其它线程修改了。
+为了遵守as-if-serial语义，编译器和处理器不会对存在数据依赖关系的操作做重排序，因为这种重排序会改变执行结果。但是，如果操作之间不存在数据依赖关系，这些操作就可能被编译器和处理器重排序。为了具体说明，请看下面计算圆面积的代码示例。
 
-高并发的场景下，使用悲观锁存在激烈的锁竞争会造成线程阻塞，还可能会存在死锁问题。
-乐观锁不存在锁竞争和死锁的问题，在性能上往往会更胜一筹。但是，如果冲突频繁发生，会频繁失败和重试，这样同样会非常影响性能。
+```Java
+double pi = 3.14;   // A
+double r = 1.0;   // B 
+double area = pi * r * r;   // C
+```
 
-**悲观锁通常多用于写比较多的情况下，避免频繁失败和重试影响性能。**
+上面3个操作的数据依赖关系：
 
-**乐观锁通常多于写比较少的情况下，避免频繁加锁影响性能。**
+![](https://cdn.tobebetterjavaer.com/tobebetterjavaer/images/sidebar/sanfene/javathread-24.png)
 
-乐观锁：原子类，ConcurrentHashMap
+A和C之间存在数据依赖关系，同时B和C之间也存在数据依赖关系。因此在最终执行的指令序列中，C不能被重排序到A和B的前面（C排到A和B的前面，程序的结果将会被改变）。但A和B之间没有数据依赖关系，编译器和处理器可以重排序A和B之间的执行顺序。
 
-悲观锁：`synchronized`、`ReentrantLock`
+所以最终，程序可能会有两种执行顺序：
 
-**乐观锁实现方式：**
+![两种执行结果](https://cdn.tobebetterjavaer.com/tobebetterjavaer/images/sidebar/sanfene/javathread-25.png)
 
-**1.  版本号机制**
+as- if-serial语义使单线程情况下，我们不需要担心重排序的问题，可见性的问题。
 
-一般是在数据表中加上一个数据版本号 `version` 字段。当数据被修改时，`version` 值会加一。在提交更新时，若读取到的 version 值和当前数据库中的 `version` 值相等时才更新，否则重试更新操作，直到更新成功。
+### volatile
 
-**2. CAS （Compare And Swap）算法**
+相比synchronized的加锁方式来解决共享变量的内存可见性问题，volatile就是更轻量的选择，它没有上下文切换的额外开销成本。
 
-CAS 是一个原子操作，底层依赖于一条 CPU 的原子指令。
+1. 保证变量的可见性
 
-CAS 涉及到三个操作数：
--   **V** ：要更新的变量值(Var)
--   **E** ：预期值(Expected)
--   **N** ：拟写入的新值(New)
+一个变量被声明为volatile 时，线程在写入变量时不会把值缓存在寄存器或者其他地方，而是会把值刷新回主内存 当其它线程读取该共享变量 ，会从主内存重新获取最新值，而不是使用当前线程的本地内存中的值。
 
-当且仅当 V 的值等于 E 时，CAS 通过原子方式用新值 N 来更新 V 的值。如果不等，说明已经有其它线程更新了 V，则当前线程放弃更新。
+2. 防止 JVM 的指令重排序。
 
-**乐观锁的问题：**
+如果我们将变量声明为 **`volatile`** ，在对这个变量进行读写操作的时候，会通过插入特定的 **内存屏障** 的方式来禁止指令重排序。
 
-ABA 问题：
+**双重校验锁实现对象单例（线程安全）** ：
 
-两次读取的数据相同，但是期间数据也可能被修改，只是经过修改之后的数据和修改之前的数据相同而已。ABA 问题的解决思路是在变量前面追加上**版本号或者时间戳**。
+```java
+public class Singleton {
+
+    private volatile static Singleton uniqueInstance;
+
+    private Singleton() {
+    }
+
+    public static Singleton getUniqueInstance() {
+        //先判断对象是否已经实例过，没有实例化过才进入加锁代码
+        if (uniqueInstance == null) {
+            //类对象加锁
+            synchronized (Singleton.class) {
+                if (uniqueInstance == null) {
+                    uniqueInstance = new Singleton();
+                }
+            }
+        }
+        return uniqueInstance;
+    }
+}
+```
+
+`uniqueInstance` 采用 `volatile` 关键字修饰也是很有必要的， `uniqueInstance = new Singleton();` 这段代码其实是分为三步执行：
+
+1.  为 `uniqueInstance` 分配内存空间
+2.  初始化 `uniqueInstance`
+3.  将 `uniqueInstance` 指向分配的内存地址
+
+但是由于 JVM 具有指令重排的特性，执行顺序有可能变成 1->3->2。指令重排在单线程环境下不会出现问题，但是在多线程环境下会导致一个线程获得还没有初始化的实例。例如，线程 T1 执行了 1 和 3，此时 T2 调用 `getUniqueInstance`() 后发现 `uniqueInstance` 不为空，因此返回 `uniqueInstance`，但此时 `uniqueInstance` 还未被初始化。
 
 ## ThreadLocal
+
+### 数据结构
 
 `ThreadLocal`类主要解决的就是让每个线程绑定自己的值，每个线程都会有`ThreadLocal`变量的本地副本。使用 `ThreadLocal` 的 `get()` 和 `set()` 方法来设置和获取本地变量副本的值，从而避免了线程安全问题。
 
@@ -163,74 +215,121 @@ ThreadLocalMap getMap(Thread t) {
 
 每个`Thread`中都只有一个`ThreadLocalMap`，而`ThreadLocalMap`可以存储以`ThreadLocal`为 key ，Object 对象为 value 的键值对。
 
-**内存泄漏问题**
+### 内存泄漏问题
 
-如果 `ThreadLocal` 没有被外部强引用，且在垃圾回收时，`ThreadLocal` 对象被清理，那么在 `ThreadLocalMap` 中会出现 key 为 null 的 Entry。由于 `ThreadLocalMap` 的实现是使用数组和链表结构，而数组的大小是固定的，不会自动缩小，这就可能导致潜在的内存泄漏问题。
-如果没有适当的措施来清理这些过期的 Entry，`ThreadLocalMap` 中的 value 对象将一直被保留，无法被垃圾回收，从而导致内存泄漏。
+栈中存储了ThreadLocal、Thread的引用，堆中存储了它们的具体实例。
 
-`ThreadLocalMap` 实现中已经考虑了这种情况，在调用 `set()`、`get()`、`remove()` 方法的时候，会清理掉 key 为 null 的记录。使用完 `ThreadLocal`方法后 最好手动调用`remove()`方法
+![ThreadLocal内存分配](https://cdn.tobebetterjavaer.com/tobebetterjavaer/images/sidebar/sanfene/javathread-14.png)
 
-## volatile
+ThreadLocalMap中使用的 key 为 ThreadLocal 的弱引用。
 
-1. 保证变量的可见性
+> “弱引用：只要垃圾回收机制一运行，不管JVM的内存空间是否充足，都会回收该对象占用的内存。”
 
-如果我们将变量声明为 **`volatile`** ，这就指示 JVM，这个变量是共享且不稳定的，每次使用它都到主存中进行读取。
+弱引用很容易被回收，如果ThreadLocal被垃圾回收器回收了，但是ThreadLocalMap生命周期和Thread是一样的，它这时候如果不被回收，就会出现这种情况：ThreadLocalMap的key没了，value还在，这就会**造成了内存泄漏问题**。
 
-2. 防止 JVM 的指令重排序。
+> 那怎么解决内存泄漏问题呢？
 
-如果我们将变量声明为 **`volatile`** ，在对这个变量进行读写操作的时候，会通过插入特定的 **内存屏障** 的方式来禁止指令重排序。
+`ThreadLocalMap` 实现中已经考虑了这种情况，在调用 `set()`、`get()`、`remove()` 方法的时候，会清理掉 key 为 null 的记录。使用完 `ThreadLocal`方法后最好手动调用`remove()`方法。
 
-**双重校验锁实现对象单例（线程安全）** ：
+> 那为什么key还要设计成弱引用？
 
-```java
-public class Singleton {
+key设计成弱引用同样是为了防止内存泄漏。
 
-    private volatile static Singleton uniqueInstance;
+假如key被设计成强引用，如果ThreadLocal Reference被销毁，此时它指向ThreadLoca的强引用就没有了，但是此时key还强引用指向ThreadLoca，就会导致ThreadLocal不能被回收，这时候就发生了内存泄漏的问题。
 
-    private Singleton() {
-    }
+###  父子线程共享数据
 
-    public static Singleton getUniqueInstance() {
-        //先判断对象是否已经实例过，没有实例化过才进入加锁代码
-        if (uniqueInstance == null) {
-            //类对象加锁
-            synchronized (Singleton.class) {
-                if (uniqueInstance == null) {
-                    uniqueInstance = new Singleton();
-                }
+父线程不能用ThreadLocal来给子线程传值，这时需要用到 `InheritableThreadLocal` 。
+
+使用起来很简单，在主线程的InheritableThreadLocal实例设置值，在子线程中就可以拿到了。
+
+```Java
+public class InheritableThreadLocalTest {
+    
+    public static void main(String[] args) {
+        final ThreadLocal threadLocal = new InheritableThreadLocal();
+        // 主线程
+        threadLocal.set("不擅技术");
+        //子线程
+        Thread t = new Thread() {
+            @Override
+            public void run() {
+                super.run();
+                System.out.println("鄙人三某 ，" + threadLocal.get());
             }
-        }
-        return uniqueInstance;
+        };
+        t.start();
     }
 }
 ```
 
-`uniqueInstance` 采用 `volatile` 关键字修饰也是很有必要的， `uniqueInstance = new Singleton();` 这段代码其实是分为三步执行：
+原理很简单，在Thread类里还有另外一个变量：
 
-1.  为 `uniqueInstance` 分配内存空间
-2.  初始化 `uniqueInstance`
-3.  将 `uniqueInstance` 指向分配的内存地址
+```Java
+ThreadLocal.ThreadLocalMap inheritableThreadLocals = null;
+```
 
-但是由于 JVM 具有指令重排的特性，执行顺序有可能变成 1->3->2。指令重排在单线程环境下不会出现问题，但是在多线程环境下会导致一个线程获得还没有初始化的实例。例如，线程 T1 执行了 1 和 3，此时 T2 调用 `getUniqueInstance`() 后发现 `uniqueInstance` 不为空，因此返回 `uniqueInstance`，但此时 `uniqueInstance` 还未被初始化。
+在Thread.init的时候，如果父线程的`inheritableThreadLocals`不为空，就把它赋给当前线程（子线程）的`inheritableThreadLocals` 。
 
-## synchronized
+## 锁
+
+### 乐观锁
+
+悲观锁每次在获取资源操作的时候都会上锁，**共享资源每次只给一个线程使用，其它线程阻塞，用完后再把资源转让给其它线程**。
+
+乐观锁只是在提交修改的时候去验证对应的资源是否被其它线程修改了。
+
+高并发的场景下，使用悲观锁存在激烈的锁竞争会造成线程阻塞，还可能会存在死锁问题。
+乐观锁不存在锁竞争和死锁的问题，在性能上往往会更胜一筹。但是，如果冲突频繁发生，会频繁失败和重试，这样同样会非常影响性能。
+
+**悲观锁通常多用于写比较多的情况下，避免频繁失败和重试影响性能。**
+
+**乐观锁通常多于写比较少的情况下，避免频繁加锁影响性能。**
+
+乐观锁：原子类，ConcurrentHashMap
+
+悲观锁：`synchronized`、`ReentrantLock`
+
+**乐观锁实现方式：**
+
+**1.  版本号机制**
+
+一般是在数据表中加上一个数据版本号 `version` 字段。当数据被修改时，`version` 值会加一。在提交更新时，若读取到的 version 值和当前数据库中的 `version` 值相等时才更新，否则重试更新操作，直到更新成功。
+
+**2. CAS （Compare And Swap）算法**
+
+CAS 是一个原子操作，底层依赖于一条 CPU 的原子指令。
+
+CAS 涉及到三个操作数：
+-   **V** ：要更新的变量值(Var)
+-   **E** ：预期值(Expected)
+-   **N** ：拟写入的新值(New)
+
+当且仅当 V 的值等于 E 时，CAS 通过原子方式用新值 N 来更新 V 的值。如果不等，说明已经有其它线程更新了 V，则当前线程放弃更新。
+
+**乐观锁的问题：**
+
+ABA 问题：
+
+两次读取的数据相同，但是期间数据也可能被修改，只是经过修改之后的数据和修改之前的数据相同而已。ABA 问题的解决思路是在变量前面追加上**版本号或者时间戳**。
+
+### synchronized
 
 `synchronized` 是 Java 中的一个关键字，翻译成中文是同步的意思，主要解决的是多个线程之间访问资源的同步性，可以保证被它修饰的方法或者代码块在任意时刻只能有一个线程执行。
 
 `synchronized` 关键字的使用方式主要有下面 3 种：
 
 1.  修饰实例方法 （锁当前对象实例）
+	
 2.  修饰静态方法（锁当前类）
-
-静态 `synchronized` 方法和非静态 `synchronized` 方法之间的调用不互斥！因为访问静态 `synchronized` 方法占用的锁是当前类的锁，而访问非静态 `synchronized` 方法占用的锁是当前实例对象锁。
-
+	- 静态 `synchronized` 方法和非静态 `synchronized` 方法之间的调用不互斥！因为访问静态 `synchronized` 方法占用的锁是当前类的锁，而访问非静态 `synchronized` 方法占用的锁是当前实例对象锁。
+	
 3.  修饰代码块，对括号里指定的对象/类加锁：
-
--   `synchronized(object)` 表示进入同步代码库前要获得 **给定对象的锁**。
--   `synchronized(类.class)` 表示进入同步代码前要获得 **给定 Class 的锁**
+	-   `synchronized(object)` 表示进入同步代码库前要获得 **给定对象的锁**。
+	-   `synchronized(类.class)` 表示进入同步代码前要获得 **给定 Class 的锁**
 
 - 尽量不要使用 `synchronized(String a)` 因为 JVM 中，字符串常量池具有缓存功能。
-- 构造方法不能使用 synchronized 关键字修饰。构造方法本身就属于线程安全的，不存在同步的构造方法一说。
+- 构造方法不能使用 `synchronized` 关键字修饰。构造方法本身就属于线程安全的，不存在同步的构造方法一说。
 
 **锁的升级流程**
 
