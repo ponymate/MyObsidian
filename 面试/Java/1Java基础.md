@@ -121,6 +121,30 @@ System.out.println(s1 == s4); //true
 -   `equals` 方法判断两个对象是相等的，那这两个对象的 `hashCode` 值也要相等。
 -   两个对象有相同的 `hashCode` 值，他们也不一定是相等的（哈希碰撞）。
 
+### 抽象类和接口
+
+1. 接⼝的⽅法默认是 public ，所有⽅法在接⼝中不能有实现(Java 8 开始接⼝⽅法可以有默认实现）。
+    
+2. 接⼝中除了 static 、 final 变量，不能有其他变量。
+    
+3. jdk 8 的时候接⼝可以有默认⽅法和静态⽅法功能。
+    
+4. jdk 9 在接⼝中引⼊了私有⽅法和私有静态⽅法。
+	
+5. 单继承，多个实现。
+	
+6. 概念：实现类，子类。
+
+### final 关键字有什么作用？
+
+final 表示不可变的意思，可用于修饰类、属性和方法：
+
+- 被 final 修饰的类不可以被继承
+    
+- 被 final 修饰的方法不可以被重写
+    
+- 被 final 修饰的变量不可变，被 final 修饰的变量必须被显式第指定初始值，还得注意的是，这里的不可变指的是变量的引用不可变，不是引用指向的内容的不可变。
+
 ### 重载 vs 重写
 
 ![[Pasted image 20230227150514.png]]
@@ -300,21 +324,22 @@ class GT<T>{
 
 在 Java 中，所有的异常都有一个共同的祖先 `java.lang` 包中的 `Throwable` 类。`Throwable` 类有两个重要的子类:
 
--   **`Exception`** :程序本身可以处理的异常，可以通过 `catch` 来进行捕获。`Exception` 又可以分为 Checked Exception 和 Unchecked Exception。
-	- Checked Exception 即 受检查异常 ，如果没有被 `catch`或者`throws` 关键字处理的话，就没办法通过编译。除了`RuntimeException`及其子类以外，其他的`Exception`类及其子类都属于受检查异常 。常见的受检查异常有： IO 相关的异常、`ClassNotFoundException` 、`SQLException`...。
-	- Unchecked Exception 即 不受检查异常 ，Java 代码在编译过程中 ，我们即使不处理不受检查异常也可以正常通过编译。
--   **`Error`** ：`Error` 属于程序无法处理的错误 ，不建议通过`catch`捕获 。例如 Java 虚拟机运行错误（`Virtual MachineError`）、虚拟机内存不够错误(`OutOfMemoryError`)、类定义错误（`NoClassDefFoundError`）等 。这些异常发生时，Java 虚拟机（JVM）一般会选择线程终止。
+-   `Error`
+	- `Error` 属于程序无法处理的错误 ，不建议通过`catch`捕获 。例如 Java 虚拟机运行错误（`Virtual MachineError`）、虚拟机内存不够错误(`OutOfMemoryError`)、类定义错误（`NoClassDefFoundError`）等 。这些异常发生时，Java 虚拟机（JVM）一般会选择线程终止。
 
-`RuntimeException` 及其子类都统称为非受检查异常，常见的有（建议记下来，日常开发中会经常用到）：
-
--   `NullPointerException`(空指针错误)
--   `IllegalArgumentException`(参数错误比如方法入参类型错误)
--   `NumberFormatException`（字符串转换为数字格式错误，`IllegalArgumentException`的子类）
--   `ArrayIndexOutOfBoundsException`（数组越界错误）
--   `ClassCastException`（类型转换错误）
--   `ArithmeticException`（算术错误）
--   `SecurityException` （安全错误比如权限不够）
--   `UnsupportedOperationException`(不支持的操作错误比如重复创建同一用户)
+-   **`Exception`** :程序本身可以处理的异常，可以通过 `catch` 来进行捕获。分为两类
+	
+	- `Checked Exception` 即 受检查异常 ，如果没有被 `catch`或者`throws` 关键字处理的话，就没办法通过编译。例如：IO 相关的异常、`ClassNotFoundException` 、`SQLException`...。
+	
+	- `RuntimeException` 即 运行时异常 
+		-   `NullPointerException`(空指针错误)
+		-   `IllegalArgumentException`(参数错误比如方法入参类型错误)
+		-   `NumberFormatException`（字符串转换为数字格式错误，`IllegalArgumentException`的子类）
+		-   `ArrayIndexOutOfBoundsException`（数组越界错误）
+		-   `ClassCastException`（类型转换错误）
+		-   `ArithmeticException`（算术错误）
+		-   `SecurityException` （安全错误比如权限不够）
+		-   `UnsupportedOperationException`(不支持的操作错误比如重复创建同一用户)
 
 `try-with-resources` 
 
@@ -336,61 +361,32 @@ catch (IOException e) {
 }
 ```
 
-### IO模型
+### BIO NIO AIO
 
-根据大学里学到的操作系统相关的知识：为了保证操作系统的稳定性和安全性，一个进程的地址空间划分为 **用户空间（User space）** 和 **内核空间（Kernel space ）** 。
+  
+![BIO、NIO、AIO](https://cdn.tobebetterjavaer.com/tobebetterjavaer/images/sidebar/sanfene/javase-26.png)
 
-像我们平常运行的应用程序都是运行在用户空间，只有内核空间才能进行系统态级别的资源有关的操作，比如文件管理、进程通信、内存管理等等。也就是说，我们想要进行 IO 操作，一定是要依赖内核空间的能力。
+**BIO**(blocking I/O) ： 就是传统的 IO，同步阻塞，服务器实现模式为一个连接一个线程，即**客户端有连接请求时服务器端就需要启动一个线程进行处理**，如果这个连接不做任何事情会造成不必要的线程开销，可以通过连接池机制改善(实现多个客户连接服务器)。
 
-并且，用户空间的程序不能直接访问内核空间。
+![BIO、NIO、AIO](https://cdn.tobebetterjavaer.com/tobebetterjavaer/images/sidebar/sanfene/javase-27.png)
 
-当想要执行 IO 操作时，由于没有执行这些操作的权限，只能发起系统调用请求操作系统帮忙完成。
 
-因此，用户进程想要执行 IO 操作的话，必须通过 **系统调用** 来间接访问内核空间
+BIO 方式适用于连接数目比较小且固定的架构，这种方式对服务器资源要求比较高，并发局限于应用中，JDK1.4 以前的唯一选择，程序简单易理解。
 
-我们在平常开发过程中接触最多的就是 **磁盘 IO（读写文件）** 和 **网络 IO（网络请求和响应）**。
+**NIO** ：全称 java non-blocking IO，是指 JDK 提供的新 API。从 JDK1.4 开始，Java 提供了一系列改进的输入/输出的新特性，被统称为 NIO(即 New IO)。
 
-**从应用程序的视角来看的话，我们的应用程序对操作系统的内核发起 IO 调用（系统调用），操作系统负责的内核执行具体的 IO 操作。也就是说，我们的应用程序实际上只是发起了 IO 操作的调用而已，具体 IO 的执行是由操作系统的内核来完成的。**
+NIO 是**同步非阻塞**的，服务器端用一个线程处理多个连接，客户端发送的连接请求会注册到多路复用器上，多路复用器轮询到连接有 IO 请求就进行处理：
 
-当应用程序发起 I/O 调用后，会经历两个步骤：
+NIO 的数据是面向**缓冲区 Buffer**的，必须从 Buffer 中读取或写入。
 
-1.  内核等待 I/O 设备准备好数据
-2.  内核将数据从内核空间拷贝到用户空间。
+![NIO完整示意图](https://cdn.tobebetterjavaer.com/tobebetterjavaer/images/sidebar/sanfene/javase-29.png)
 
-**BIO 属于同步阻塞 IO 模型** 。
+可以看出，NIO 的运行机制：
 
-同步阻塞 IO 模型中，应用程序发起 read 调用后，会一直阻塞，直到内核把数据拷贝到用户空间。
+- 每个 Client 对应一个 Buffer。
+- Selector 对应一个线程，一个线程对应多个 Channel。
+- Selector 会根据不同的事件，在各个通道上切换。
+- Buffer 是内存块，底层是数据。
 
-**NIO (Non-blocking/New I/O)**
+**AIO**：JDK 7 引入了 Asynchronous I/O，是**异步不阻塞**的 IO。在进行 I/O 编程中，常用到两种模式：Reactor 和 Proactor。Java 的 NIO 就是 Reactor，当有事件触发时，服务器端得到通知，进行相应的处理，完成后才通知服务端程序启动线程去处理，一般适用于连接数较多且连接时间较长的应用。
 
-**同步非阻塞 IO 模型**。
-
-![[Pasted image 20230714153444.png]]
-
-同步非阻塞 IO 模型中，应用程序会一直发起 read 调用，等待数据从内核空间拷贝到用户空间的这段时间里，线程依然是阻塞的，直到在内核把数据拷贝到用户空间。
-
-相比于同步阻塞 IO 模型，同步非阻塞 IO 模型确实有了很大改进。通过轮询操作，避免了一直阻塞。
-
-但是，这种 IO 模型同样存在问题：**应用程序不断进行 I/O 系统调用轮询数据是否已经准备好的过程是十分消耗 CPU 资源的。**
-
-**I/O 多路复用模型** 
-
-![[Pasted image 20230714153503.png]]
-
-IO 多路复用模型中，线程首先发起 select 调用，询问内核数据是否准备就绪，等内核把数据准备好了，用户线程再发起 read 调用。read 调用的过程（数据从内核空间 -> 用户空间）还是阻塞的。
-
-**IO 多路复用模型，通过减少无效的系统调用，减少了对 CPU 资源的消耗。**
-
-Java 中的 NIO 于 Java 1.4 中引入，对应 `java.nio` 包，提供了 `Channel` , `Selector`，`Buffer` 等抽象。NIO 中的 N 可以理解为 Non-blocking，不单纯是 New。它是支持面向缓冲的，基于通道的 I/O 操作方法。 对于高负载、高并发的（网络）应用，应使用 NIO 。
-
-![[Pasted image 20230714153513.png]]
-
-**AIO (Asynchronous I/O)**
-
-AIO 也就是 NIO 2。Java 7 中引入了 NIO 的改进版 NIO 2,它是异步 IO 模型。
-
-异步 IO 是基于事件和回调机制实现的，也就是应用操作之后会直接返回，不会堵塞在那里，当后台处理完成，操作系统会通知相应的线程进行后续的操作。
-
-目前来说 AIO 的应用还不是很广泛。Netty 之前也尝试使用过 AIO，不过又放弃了。这是因为，Netty 使用了 AIO 之后，在 Linux 系统上的性能并没有多少提升。
-
-![[Pasted image 20230714153534.png]]
