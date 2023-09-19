@@ -150,8 +150,10 @@ jdk1.8 的HashMap主要有五点优化：
 
 ### ConcurrentHashMap
 
--   JDK1.7： `ConcurrentHashMap` 对整个桶数组进行了分段(`Segment`，分段锁) ，`Segment` 继承自 `ReentrantLock`。每一把锁只锁容器其中一部分数据，多线程访问容器里不同数据段的数据，就不会存在锁竞争，提高并发访问率。最大并发度是 Segment 的个数，默认是 16。
--   JDK1.8 ：`ConcurrentHashMap` 已经摒弃了 `Segment` 的概念，使用乐观锁，直接用 `Node` 数组+链表+红黑树的数据结构来实现，采用 `Node + CAS` 来保证并发安全。最大并发度是 Node 数组的大小，并发度更大。锁粒度更细，只锁定当前链表或红黑二叉树的首节点，这样只要 hash 不冲突，就不会产生并发，就不会影响其他 Node 的读写，效率大幅提升。
+-   JDK1.7： `ConcurrentHashMap` 对整个桶数组进行了分段(`Segment`，分段锁) ，`Segment` 继承自 `ReentrantLock`，`Segment` 则包含HashEntry的数组。每一把锁只锁容器其中一部分数据，多线程访问容器里不同数据段的数据，就不会存在锁竞争，提高并发访问率。最大并发度是 Segment 的个数，默认是 16。
+-   JDK1.8 ：`ConcurrentHashMap` 已经摒弃了 `Segment` 的概念，基于`CAS+synchronized`实现。并发度更大。锁粒度更细，只锁定当前链表或红黑二叉树的首节点，这样只要 hash 不冲突，就不会产生并发，就不会影响其他 Node 的读写，效率大幅提升。
+	- 如果node数组为空，或者当前node数组位置为空，则使用 `CAS` +自旋写入数据。
+	- 如果当前node数组位置中包含数据，则使用 `synchronized` 写入数据
 
 **JDK1.7 的 ConcurrentHashMap** ：
 
