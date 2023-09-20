@@ -273,46 +273,6 @@ ThreadLocal.ThreadLocalMap inheritableThreadLocals = null;
 
 ## 锁
 
-### 乐观锁
-
-悲观锁每次在获取资源操作的时候都会上锁，**共享资源每次只给一个线程使用，其它线程阻塞，用完后再把资源转让给其它线程**。
-
-乐观锁只是在提交修改的时候去验证对应的资源是否被其它线程修改了。
-
-高并发的场景下，使用悲观锁存在激烈的锁竞争会造成线程阻塞，还可能会存在死锁问题。
-乐观锁不存在锁竞争和死锁的问题，在性能上往往会更胜一筹。但是，如果冲突频繁发生，会频繁失败和重试，这样同样会非常影响性能。
-
-**悲观锁通常多用于写比较多的情况下，避免频繁失败和重试影响性能。**
-
-**乐观锁通常多于写比较少的情况下，避免频繁加锁影响性能。**
-
-乐观锁：原子类，ConcurrentHashMap
-
-悲观锁：`synchronized`、`ReentrantLock`
-
-**乐观锁实现方式：**
-
-**1.  版本号机制**
-
-一般是在数据表中加上一个数据版本号 `version` 字段。当数据被修改时，`version` 值会加一。在提交更新时，若读取到的 version 值和当前数据库中的 `version` 值相等时才更新，否则重试更新操作，直到更新成功。
-
-**2. CAS （Compare And Swap）算法**
-
-CAS 是一个原子操作，底层依赖于一条 CPU 的原子指令。
-
-CAS 涉及到三个操作数：
--   **V** ：要更新的变量值(Var)
--   **E** ：预期值(Expected)
--   **N** ：拟写入的新值(New)
-
-当且仅当 V 的值等于 E 时，CAS 通过原子方式用新值 N 来更新 V 的值。如果不等，说明已经有其它线程更新了 V，则当前线程放弃更新。
-
-**乐观锁的问题：**
-
-ABA 问题：
-
-两次读取的数据相同，但是期间数据也可能被修改，只是经过修改之后的数据和修改之前的数据相同而已。ABA 问题的解决思路是在变量前面追加上**版本号或者时间戳**。
-
 ### synchronized
 
 `synchronized` 是 Java 中的一个关键字，翻译成中文是同步的意思，主要解决的是多个线程之间访问资源的同步性，可以保证被它修饰的方法或者代码块在任意时刻只能有一个线程执行。
@@ -450,6 +410,44 @@ AQS 使用由 `volatile` 修饰的 int 成员变量 `state` 表示同步状态�
 A 线程 `lock()` 时，会调用 `tryAcquire()` 独占该锁并将 `state+1` 。此后，其他线程再 `tryAcquire()` 时就会失败，直到 A 线程 `unlock()` 到 `state=0`（即释放锁）为止，其它线程才有机会获取该锁。
 当然，释放锁之前，A 线程自己是可以重复获取此锁的（`state` 会累加），这就是可重入的概念。但要注意，获取多少次就要释放多少次，这样才能保证 state 是能回到零态的。
 
+### 乐观锁
+
+乐观锁只是在提交修改的时候去验证对应的资源是否被其它线程修改了。
+
+高并发的场景下，使用悲观锁存在激烈的锁竞争会造成线程阻塞，还可能会存在死锁问题。
+乐观锁不存在锁竞争和死锁的问题，在性能上往往会更胜一筹。但是，如果冲突频繁发生，会频繁失败和重试，这样同样会非常影响性能。
+
+**悲观锁通常多用于写比较多的情况下，避免频繁失败和重试影响性能。**
+
+**乐观锁通常多于写比较少的情况下，避免频繁加锁影响性能。**
+
+乐观锁：原子类
+
+悲观锁：`synchronized`、`ReentrantLock`
+
+**乐观锁实现方式：**
+
+**1.  版本号机制**
+
+一般是在数据表中加上一个数据版本号 `version` 字段。当数据被修改时，`version` 值会加一。在提交更新时，若读取到的 version 值和当前数据库中的 `version` 值相等时才更新，否则重试更新操作，直到更新成功。
+
+**2. CAS （Compare And Swap）**
+
+CAS 是一个原子操作，底层依赖于一条 CPU 的原子指令。
+
+CAS 涉及到三个操作数：
+-   **V** ：要更新的变量值(Var)
+-   **E** ：预期值(Expected)
+-   **N** ：拟写入的新值(New)
+
+当且仅当 V 的值等于 E 时，CAS 通过原子方式用新值 N 来更新 V 的值。如果不等，说明已经有其它线程更新了 V，则当前线程放弃更新。
+
+**乐观锁的问题：**
+
+ABA 问题：
+
+两次读取的数据相同，但是期间数据也可能被修改，只是经过修改之后的数据和修改之前的数据相同而已。ABA 问题的解决思路是在变量前面追加上**版本号或者时间戳**。
+
 ### synchronized、ReentrantLock
 
 -  **synchronized 依赖于 JVM 而 ReentrantLock 依赖于 API**
@@ -475,84 +473,45 @@ A 线程 `lock()` 时，会调用 `tryAcquire()` 独占该锁并将 `state+1` �
 		- `synchronized` 不用手动释放锁。
 
 ![synchronized和ReentrantLock的区别](https://cdn.tobebetterjavaer.com/tobebetterjavaer/images/sidebar/sanfene/javathread-38.png)
-## ok
-### Semaphore
 
-`synchronized` 和 `ReentrantLock` 都是一次只允许一个线程访问某个资源，而`Semaphore`(信号量)可以用来控制同时访问特定资源的线程数量。
+### volatile、synchronized
 
-Semaphore 的使用简单，下面的代码表示同一时刻 N 个线程中只有 5 个线程能获取到共享资源，其他线程都会阻塞，只有获取到共享资源的线程才能执行。
+volatile是变量在多线程之间的可见性，synchronize是多线程之间访问资源的同步性。
 
-```java
-// 初始共享资源数量
-final Semaphore semaphore = new Semaphore(5);
-// 获取1个许可
-semaphore.acquire();
-// 释放1个许可
-semaphore.release();
-```
+Volatile只能修饰变量，synchronized可以修饰方法，静态方法，代码块。
 
-调用`semaphore.acquire()` ，线程尝试获取许可证，如果 `state >= 0` 的话，则表示可以获取成功。如果获取成功的话，使用 CAS 操作去修改 `state` 的值 `state=state-1`。如果 `state<0` 的话，则表示许可证数量不足。此时会创建一个 Node 节点加入阻塞队列，挂起当前线程。
-调用`semaphore.release();` ，线程尝试释放许可证，并使用 CAS 操作去修改 `state` 的值 `state=state+1`。释放许可证成功之后，同时会唤醒同步队列中的一个线程。被唤醒的线程会重新尝试去修改 `state` 的值 `state=state-1` ，如果 `state>=0` 则获取令牌成功，否则重新进入阻塞队列，挂起线程。
+Volatile对任意单个变量的读/写具有原子性，但是类似于i++这种复合操作不具有原子性。而锁的互斥执行的特性可以确保对整个临界区代码执行具有原子性。
 
-```java
-/**
- *
- * @author Snailclimb
- * @date 2018年9月30日
- * @Description: 需要一次性拿一个许可的情况
- */
-public class SemaphoreExample1 {
-	// 请求的数量
-	private static final int threadCount = 550;
-	
-	public static void main(String[] args) throws InterruptedException {
-		// 创建一个具有固定线程数量的线程池对象（如果这里线程池的线程数量给太少的话你会发现执行的很慢）
-		ExecutorService threadPool = Executors.newFixedThreadPool(300);
-		// 初始许可证数量
-		final Semaphore semaphore = new Semaphore(20);
-		
-		for (int i = 0; i < threadCount; i++) {
-			final int threadnum = i;
-			threadPool.execute(() -> {// Lambda 表达式的运用
-				try {
-					semaphore.acquire();// 获取一个许可，所以可运行线程数量为20/1=20
-					test(threadnum);
-					semaphore.release();// 释放一个许可
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			});
-		}
-		threadPool.shutdown();
-		System.out.println("finish");
-	}
+多线程访问volatile不会发生阻塞，而synchronized会发生阻塞。
 
-	public static void test(int threadnum) throws InterruptedException {
-		Thread.sleep(1000);// 模拟请求的耗时操作
-		System.out.println("threadnum:" + threadnum);
-		Thread.sleep(1000);// 模拟请求的耗时操作
-	}
-}
-```
+### CAS、synchronized
+
+synchronized和CAS（Compare and Swap）都是Java中用于线程同步的机制，但它们的原理和使用场景有所不同。
+
+synchronized是一种重量级锁，当多个线程同时访问同一个对象的synchronized代码块或方法时，只有一个线程能够获取到锁，其他线程则需要等待锁的释放。因此，synchronized对于高并发场景下的性能开销较大，并且容易出现死锁等问题。
+
+CAS是一种非阻塞算法，可以在并发情况下实现线程安全的操作。CAS基于一条cpu的原子命令，其基本原理是在操作共享变量时，先比较该变量的值是否为预期值，如果是，则将该变量的值修改为新值，否则不做任何操作。
+
+synchronized和CAS的联系在于它们都是用于线程同步和实现线程安全的机制。在Java中，synchronized是实现线程同步和保证线程安全的主要手段，而CAS则在Java中被广泛用于实现高效的无锁数据结构，如ConcurrentHashMap、AtomicInteger等。在高并发的场景下，使用CAS可以避免锁竞争和线程阻塞的问题，从而提高程序的并发性能。
+
+## 并发工具类
 
 ### CountDownLatch
 
-`CountDownLatch` 允许 `count` 个线程阻塞在一个地方，直至所有线程的任务都执行完毕。
+`CountDownLatch` 允许 `count` 个任务阻塞在一个地方，直至所有的任务都执行完毕。
 
-`CountDownLatch` 是一次性的，计数器的值只能在构造方法中初始化一次，之后没有任何机制再次对其设置值，当 `CountDownLatch` 使用完毕后，它不能再次被使用。
+`CountDownLatch` 是一次性的，计数器的值只能在构造方法中初始化一次，之后没有任何机制再次对其设置值，当 `CountDownLatch` 使用完毕后，它不能再次被使用。`CountDownLatch` 是共享锁的一种实现，它默认构造 AQS 的 `state` 值为 `count`。
 
-`CountDownLatch` 是共享锁的一种实现，它默认构造 AQS 的 `state` 值为 `count`。当线程使用 `countDown()` 方法时,其实使用了`tryReleaseShared`方法以 CAS 的操作来减少 `state`,直至 `state` 为 0 。当调用 `await()` 方法的时候，如果 `state` 不为 0，那就证明任务还没有执行完毕，`await()` 方法就会一直阻塞，也就是说 `await()` 方法之后的语句不会被执行。然后，`CountDownLatch` 会自旋 CAS 判断 `state == 0`，如果 `state == 0` 的话，就会释放所有等待的线程，`await()` 方法之后的语句得到执行。
+CountDownLatch的**核心方法**也不多：
+
+- `await()`：等待 `state` 降为0；
+- `boolean await(long timeout, TimeUnit unit)`：等待latch降为0，但是可以设置超时时间。比如有玩家超时未确认，那就重新匹配，总不能为了某个玩家等到天荒地老。
+- `countDown()`：`state`数量减1，通过CAS操作进行。
+- `getCount()`：获取当前的latch数量。
 
 **CountDownLatch 代码示例** ：
 
 ```java
-/**
- *
- * @author SnailClimb
- * @date 2018年10月1日
- * @Description: CountDownLatch 使用方法示例
- */
 public class CountDownLatchExample1 {
 	// 请求的数量
 	private static final int threadCount = 550;
@@ -593,63 +552,91 @@ public class CountDownLatchExample1 {
 
 **使用场景**
 
-`CountDownLatch` 的作用就是 允许 count 个线程阻塞在一个地方，直至所有线程的任务都执行完毕。之前在项目中，有一个使用多线程读取多个文件处理的场景，我用到了 `CountDownLatch` 。具体场景是下面这样的：
-
-我们要读取处理 6 个文件，这 6 个任务都是没有执行顺序依赖的任务，但是我们需要返回给用户的时候将这几个文件的处理的结果进行统计整理。
+比如读取处理 6 个文件，这 6 个任务都是没有执行顺序依赖的任务，但是我们需要返回给用户的时候将这几个文件的处理的结果进行统计整理。
 
 为此我们定义了一个线程池和 count 为 6 的`CountDownLatch`对象 。使用线程池处理读取任务，每一个线程处理完之后就将 count-1，调用`CountDownLatch`对象的 `await()`方法，直到所有文件读取完之后，才会接着执行后面的逻辑。
 
-伪代码是下面这样的：
+### CyclicBarrier
+
+CyclicBarrier的字面意思是可循环使用（Cyclic）的屏障（Barrier）。它要做的事情是，让一 组线程到达一个屏障（也可以叫同步点）时被阻塞，直到最后一个线程到达屏障时，屏障才会开门，所有被屏障拦截的线程才会继续运行。
+
+CyclicBarrier最最核心的方法，仍然是await()：
+
+- 如果当前线程不是第一个到达屏障的话，它将会进入等待，直到其他线程都到达，除非发生**被中断**、**屏障被拆除**、**屏障被重设**等情况；
+
+CyclicBarrier工作流程：
+
+![CyclicBarrier工作流程](https://cdn.tobebetterjavaer.com/tobebetterjavaer/images/sidebar/sanfene/javathread-55.png)
+
+### 对比
+
+|CyclicBarrier|CountDownLatch|
+|---|---|
+|CyclicBarrier是可重用的，其中的线程会等待所有的线程完成任务。届时，屏障将被拆除，并可以选择性地做一些特定的动作。|CountDownLatch是一次性的，不同的线程在同一个计数器上工作，直到计数器为0.|
+|CyclicBarrier面向的是线程数，在使用CyclicBarrier时，你必须在构造中指定参与协作的线程数，这些线程必须调用await()方法|CountDownLatch面向的是任务数，使用CountDownLatch时，则必须要指定任务数，至于这些任务由哪些线程完成无关紧要|
+|在CyclicBarrier中，如果某个线程遇到了中断、超时等问题时，则处于await的线程都会出现问题|在CountDownLatch中，如果某个线程出现问题，其他线程不受影响|
+
+### Semaphore
+
+`synchronized` 和 `ReentrantLock` 都是一次只允许一个线程访问某个资源，而`Semaphore`(信号量)可以用来控制同时访问特定资源的线程数量。
+
+Semaphore 的使用简单，下面的代码表示同一时刻 N 个线程中只有 5 个线程能获取到共享资源，其他线程都会阻塞，只有获取到共享资源的线程才能执行。
 
 ```java
-public class CountDownLatchExample1 {
-    // 处理文件的数量
-    private static final int threadCount = 6;
+// 初始共享资源数量
+final Semaphore semaphore = new Semaphore(5);
+// 获取1个许可
+semaphore.acquire();
+// 释放1个许可
+semaphore.release();
+```
 
-    public static void main(String[] args) throws InterruptedException {
-        // 创建一个具有固定线程数量的线程池对象（推荐使用构造方法创建）
-        ExecutorService threadPool = Executors.newFixedThreadPool(10);
-        final CountDownLatch countDownLatch = new CountDownLatch(threadCount);
-        for (int i = 0; i < threadCount; i++) {
-            final int threadnum = i;
-            threadPool.execute(() -> {
-                try {
-                    //处理文件的业务操作
-                    //......
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } finally {
-                    //表示一个文件已经被完成
-                    countDownLatch.countDown();
-                }
+- 调用`semaphore.acquire()` ，线程尝试获取许可证，如果 `state >= 0` 的话，则表示可以获取成功。如果获取成功的话，使用 CAS 操作去修改 `state` 的值 `state=state-1`。如果 `state<0` 的话，则表示许可证数量不足。此时会创建一个 Node 节点加入阻塞队列，挂起当前线程。
 
-            });
-        }
-        countDownLatch.await();
-        threadPool.shutdown();
-        System.out.println("finish");
-    }
+- 调用`semaphore.release();` ，线程尝试释放许可证，并使用 CAS 操作去修改 `state` 的值 `state=state+1`。释放许可证成功之后，同时会唤醒同步队列中的一个线程。被唤醒的线程会重新尝试去修改 `state` 的值 `state=state-1` ，如果 `state>=0` 则获取令牌成功，否则重新进入阻塞队列，挂起线程。
+
+```java
+public class SemaphoreExample1 {
+	// 请求的数量
+	private static final int threadCount = 550;
+	
+	public static void main(String[] args) throws InterruptedException {
+		// 创建一个具有固定线程数量的线程池对象（如果这里线程池的线程数量给太少的话你会发现执行的很慢）
+		ExecutorService threadPool = Executors.newFixedThreadPool(300);
+		// 初始许可证数量
+		final Semaphore semaphore = new Semaphore(20);
+		
+		for (int i = 0; i < threadCount; i++) {
+			final int threadnum = i;
+			threadPool.execute(() -> {// Lambda 表达式的运用
+				try {
+					semaphore.acquire();// 获取一个许可，所以可运行线程数量为20/1=20
+					test(threadnum);
+					semaphore.release();// 释放一个许可
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			});
+		}
+		threadPool.shutdown();
+		System.out.println("finish");
+	}
+
+	public static void test(int threadnum) throws InterruptedException {
+		Thread.sleep(1000);// 模拟请求的耗时操作
+		System.out.println("threadnum:" + threadnum);
+		Thread.sleep(1000);// 模拟请求的耗时操作
+	}
 }
 ```
 
-## 对比
+### Exchanger
 
-### volatile、synchronized
+Exchanger（交换者）是一个用于线程间协作的工具类。Exchanger用于进行线程间的数据交换。它提供一个同步点，在这个同步点，两个线程可以交换彼此的数据。
 
-volatile是变量在多线程之间的可见性，synchronize是多线程之间访问资源的同步性。
+这两个线程通过 exchange方法交换数据，如果第一个线程先执行exchange()方法，它会一直等待第二个线程也执行exchange方法，当两个线程都到达同步点时，这两个线程就可以交换数据，将本线程生产出来的数据传递给对方。
 
-Volatile只能修饰变量，synchronized可以修饰方法，静态方法，代码块。
+Exchanger可以用于遗传算法，遗传算法里需要选出两个人作为交配对象，这时候会交换两人的数据，并使用交叉规则得出2个交配结果。Exchanger也可以用于校对工作，比如我们需要将纸制银行流水通过人工的方式录入成电子银行流水，为了避免错误，采用AB岗两人进行录入，录入到Excel之后，系统需要加载这两个Excel，并对两个Excel数据进行校对，看看是否录入一致。
 
-Volatile对任意单个变量的读/写具有原子性，但是类似于i++这种复合操作不具有原子性。而锁的互斥执行的特性可以确保对整个临界区代码执行具有原子性。
-
-多线程访问volatile不会发生阻塞，而synchronized会发生阻塞。
-
-### CAS、synchronized
-
-synchronized和CAS（Compare and Swap）都是Java中用于线程同步的机制，但它们的原理和使用场景有所不同。
-
-synchronized是一种重量级锁，当多个线程同时访问同一个对象的synchronized代码块或方法时，只有一个线程能够获取到锁，其他线程则需要等待锁的释放。因此，synchronized对于高并发场景下的性能开销较大，并且容易出现死锁等问题。
-
-CAS是一种非阻塞算法，可以在并发情况下实现线程安全的操作。CAS基于一条cpu的原子命令，其基本原理是在操作共享变量时，先比较该变量的值是否为预期值，如果是，则将该变量的值修改为新值，否则不做任何操作。
-
-synchronized和CAS的联系在于它们都是用于线程同步和实现线程安全的机制。在Java中，synchronized是实现线程同步和保证线程安全的主要手段，而CAS则在Java中被广泛用于实现高效的无锁数据结构，如ConcurrentHashMap、AtomicInteger等。在高并发的场景下，使用CAS可以避免锁竞争和线程阻塞的问题，从而提高程序的并发性能。
+假如两个线程有一个没有执行exchange()方法，则会一直等待，如果担心有特殊情况发生，避免一直等待，可以使用`exchange(V x, long timeOut, TimeUnit unit)` 设置最大等待时长。
