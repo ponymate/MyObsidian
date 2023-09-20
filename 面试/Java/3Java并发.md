@@ -444,23 +444,37 @@ AQS 核心思想是，如果被请求的共享资源空闲，则将当前请求�
 
 CLH(Craig,Landin,and Hagersten) 队列是一个虚拟的双向队列（虚拟的双向队列即不存在队列实例，仅存在结点之间的关联关系）。AQS 是将每条请求共享资源的线程封装成一个 CLH 锁队列的一个结点。在 CLH 同步队列中，一个节点表示一个线程，它保存着线程的引用（thread）、 当前节点在队列中的状态（waitStatus）、前驱节点（prev）、后继节点（next）。
 
-CLH 队列结构如下图所示：
-
-![[Pasted image 20230715153914.png]]
-
-AQS 使用 int 成员变量 `state` 表示同步状态，通过内置的线程等待队列完成获取资源线程的排队工作。
-
-`state` 变量由 `volatile` 修饰，用于展示当前临界资源的获锁情况。
-
-```java
-// 共享变量，使用volatile修饰保证线程可见性
-private volatile int state;
-```
+AQS 使用由 `volatile` 修饰的 int 成员变量 `state` 表示同步状态，通过 CLH 进行线程的排队工作。
 
 以 `ReentrantLock` 为例，`state` 初始值为 0，表示未锁定状态。
 A 线程 `lock()` 时，会调用 `tryAcquire()` 独占该锁并将 `state+1` 。此后，其他线程再 `tryAcquire()` 时就会失败，直到 A 线程 `unlock()` 到 `state=0`（即释放锁）为止，其它线程才有机会获取该锁。
 当然，释放锁之前，A 线程自己是可以重复获取此锁的（`state` 会累加），这就是可重入的概念。但要注意，获取多少次就要释放多少次，这样才能保证 state 是能回到零态的。
 
+### synchronized、ReentrantLock
+
+-  **synchronized 依赖于 JVM 而 ReentrantLock 依赖于 API**
+	- `synchronized` 是依赖于 JVM 实现的。
+	- `ReentrantLock` 是 JDK 层面实现的，也就是 API 层面，需要 lock() 和 unlock() 方法配合 try/finally 语句块来完成，`ReentrantLock` 里面有一个内部类 `Sync`，`Sync` 继承 AQS（`AbstractQueuedSynchronizer`），添加锁和释放锁的大部分操作实际上都是在 `Sync` 中实现的。`Sync` 有公平锁 `FairSync` 和非公平锁 `NonfairSync` 两个子类。
+
+- **性能**：
+	在JDK1.6锁优化以前，synchronized的性能比ReenTrantLock差很多。但是JDK6开始，增加了适应性自旋、锁消除等，两者性能就差不多了。
+
+- **ReentrantLock 比 synchronized 增加了一些高级功能**
+	
+	- **等待可中断** : 
+		- **可中断锁** ：获取锁的过程中可以被中断，不需要一直等到获取锁之后才能进行其他逻辑处理。`ReentrantLock` 就属于是可中断锁。
+		- **不可中断锁** ：一旦线程申请了锁，就只能等到拿到锁以后才能进行其他的逻辑处理。`synchronized` 就属于是不可中断锁。
+	- **可实现公平锁** : 
+		- `ReentrantLock`默认情况是非公平的，可以通过 `ReentrantLock`类的`ReentrantLock(boolean fair)`构造方法来指定是否是公平的。
+		- `synchronized`只能是非公平锁。所谓的公平锁就是先等待的线程先获得锁。
+	- **可实现选择性通知**: 
+		- `synchronized`通过 `wait()`和`notify()`/`notifyAll()`方法实现等待/通知机制。
+		- `ReentrantLock` 通过 `Condition`接口与`newCondition()`方法。
+	- **释放锁的方法**
+		- `ReentrantLock` 需要手工声明来加锁和释放锁，一般跟finally配合释放锁。
+		- `synchronized` 不用手动释放锁。
+
+![synchronized和ReentrantLock的区别](https://cdn.tobebetterjavaer.com/tobebetterjavaer/images/sidebar/sanfene/javathread-38.png)
 ## ok
 ### Semaphore
 
@@ -639,36 +653,3 @@ synchronized是一种重量级锁，当多个线程同时访问同一个对象�
 CAS是一种非阻塞算法，可以在并发情况下实现线程安全的操作。CAS基于一条cpu的原子命令，其基本原理是在操作共享变量时，先比较该变量的值是否为预期值，如果是，则将该变量的值修改为新值，否则不做任何操作。
 
 synchronized和CAS的联系在于它们都是用于线程同步和实现线程安全的机制。在Java中，synchronized是实现线程同步和保证线程安全的主要手段，而CAS则在Java中被广泛用于实现高效的无锁数据结构，如ConcurrentHashMap、AtomicInteger等。在高并发的场景下，使用CAS可以避免锁竞争和线程阻塞的问题，从而提高程序的并发性能。
-### synchronized、ReentrantLock
-
-1. **两者都是可重入锁**
-
-**可重入锁** 也叫递归锁，指的是线程可以再次获取自己的内部锁。比如一个线程获得了某个对象的锁，此时这个对象锁还没有释放，当其再次想要获取这个对象的锁的时候还是可以获取的，如果是不可重入锁的话，就会造成死锁。
-
-JDK 提供的所有现成的 `Lock` 实现类，包括 `synchronized` 关键字锁都是可重入的。
-
-2. **synchronized 依赖于 JVM 而 ReentrantLock 依赖于 API**
-
-`synchronized` 是依赖于 JVM 实现的。
-
-`ReentrantLock` 是 JDK 层面实现的，也就是 API 层面，需要 lock() 和 unlock() 方法配合 try/finally 语句块来完成，`ReentrantLock` 里面有一个内部类 `Sync`，`Sync` 继承 AQS（`AbstractQueuedSynchronizer`），添加锁和释放锁的大部分操作实际上都是在 `Sync` 中实现的。`Sync` 有公平锁 `FairSync` 和非公平锁 `NonfairSync` 两个子类。
-
-3. **ReentrantLock 比 synchronized 增加了一些高级功能**
-
-- **等待可中断** : 
-	- **可中断锁** ：获取锁的过程中可以被中断，不需要一直等到获取锁之后才能进行其他逻辑处理。`ReentrantLock` 就属于是可中断锁。
-	- **不可中断锁** ：一旦线程申请了锁，就只能等到拿到锁以后才能进行其他的逻辑处理。`synchronized` 就属于是不可中断锁。
-- **可实现公平锁** : 
-	- `ReentrantLock`默认情况是非公平的，可以通过 `ReentrantLock`类的`ReentrantLock(boolean fair)`构造方法来指定是否是公平的。
-	- `synchronized`只能是非公平锁。所谓的公平锁就是先等待的线程先获得锁。
-- **可实现选择性通知**: 
-	- `synchronized`关键字与`wait()`和`notify()`/`notifyAll()`方法相结合可以实现等待/通知机制。
-	- `ReentrantLock`类需要借助于`Condition`接口与`newCondition()`方法。
-- **性能**：
-	- 在低竞争情况下，`synchronized` 的性能比较好，因为它是 JVM 层面的内置锁，操作系统不需要进行用户态和内核态的切换。
-	- 在高竞争和高并发情况下，`ReentrantLock` 的性能可能更好，因为它提供了更多的控制和灵活性。
-
-- 当只需要简单的锁机制，并且不需要特定的高级特性时，`synchronized` 可以满足大部分需求，而且代码更简洁易读。
-- 如果需要更高的灵活性，比如可中断锁、公平锁、多条件变量等，或者需要在高竞争场景下进行性能优化时，可以选择使用 `ReentrantLock`。
-
-总的来说，两者都是合适的工具，具体选择要根据项目需求和性能特性来决定。在 Java 5 之前，`ReentrantLock` 提供了一些额外的功能，但随着 JDK 的更新，`synchronized` 也得到了一些改进，因此在大多数情况下，选择哪一个都可以。
