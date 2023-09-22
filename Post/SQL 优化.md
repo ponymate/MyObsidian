@@ -25,27 +25,60 @@ where exists (select 1 from user where order.user_id = user.id and status=1)
 
 #### 连接查询代替子查询
 
-mysql中如果需要从两张以上的表中查询出数据的话，一般有两种实现方式：`子查询` 和 `连接查询`
+mysql中如果需要从两张以上的表中查询出数据的话，一般有两种实现方式：`子查询` 和  `连接查询`
 
 子查询的缺点是mysql执行子查询时，需要创建临时表，查询完毕后，需要再删除这些临时表，有一些额外的性能消耗。
 
-#### 14 使用 LIKE 谓词时，只有前方一致的匹配才能用到索引（最左匹配原则）
+#### 分页优化
 
-`× SELECT * FROM SomeTable WHERE col_1 LIKE '%a';   × SELECT * FROM SomeTable WHERE col_1 LIKE '%a%';   ○ SELECT * FROM SomeTable WHERE col_1 LIKE 'a%';   `
+在数据量比较大，分页比较深的情况下，需要考虑分页的优化。
 
-上例中，只有第三条会命中索引，前面两条进行后方一致或中间一致的匹配无法命中索引
+例如：
 
-#### 18 or查询导致失效
+```sql
+select * from table where type = 2 and level = 9 order by id asc limit 190289,10;
+```
 
-**低版本避免使用 or 查询**
+优化方案：
+
+- **延迟关联**
+
+先通过 where 条件提取出主键，在将该表与原数据表关联，通过主键 id 提取数据行，而不是通过原来的二级索引提取数据行
+
+例如：
+
+```sql
+select a.* from table a, 
+ (select id from table where type = 2 and level = 9 order by id asc limit 190289,10 ) b
+ where a.id = b.id
+```
+
+- **书签方式**
+
+书签方式就是找到 limit 第一个参数对应的主键值，根据这个主键值再去过滤并 limit
+
+例如：
+
+```sql
+  select * from table where id >
+  (select * from table where type = 2 and level = 9 order by id asc limit 190
+```
+
+### 索引优化
+
+>查询条件包含 or，可能导致索引失效
 
 在 MySQL 5.0 之前的版本要尽量避免使用 or 查询，可以使用 union 或者子查询来替代，因为早期的 MySQL 版本使用 or 查询可能会导致索引失效，高版本引入了索引合并，解决了这个问题。
 
-```sql
-select * from table where col_a=1 or col_b=''
-```
-
-or查询会导致索引失效，可以将col_a和col_b分别建立索引，利用Mysql的index merge(索引合并)进行优化。本质上是分别两个字段分别走各自索引查出对应的数据，再将数据进行合并。
+- 如果字段类型是字符串，where 时一定用引号括起来，否则会因为隐式类型转换，索引失效
+- like 通配符可能导致索引失效，只有前方一致的匹配才能用到索引
+- 联合索引，条件列不是联合索引中的第一个列，索引失效（最左匹配原则）。
+- 在索引列上使用 mysql 的内置函数，索引失效。
+- 对索引列运算（如，+、-、* 、/），索引失效。
+- 索引字段上使用（！= 或者 < >，not in）时，可能会导致索引失效，SQL 中，不等于操作符会导致查询引擎放弃查询索引，引起全表扫描，即使比较的字段上有索引
+- 索引字段上使用 is null， is not null，可能导致索引失效。
+- 左连接查询或者右连接查询查询关联的字段编码格式不一样，可能导致索引失效。
+- MySQL 优化器估计使用全表扫描要比使用索引快,则不使用索引。
 
 ### 执行计划（explain）
 
